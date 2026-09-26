@@ -15,7 +15,7 @@ from torchvision import models, transforms
 import streamlit as st
 
 
-ART = Path(__file__).resolve().parent / "artifacts"
+ARTIFACTS = Path(__file__).resolve().parent / "artifacts"
 MODEL_FILE = ARTIFACTS / "caption_model.pt"
 VOCAB_FILE = ARTIFACTS / "vocab.json"
 
