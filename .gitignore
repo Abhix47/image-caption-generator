@@ -16,9 +16,7 @@ env/
 dataset/Flickr8k_Dataset/Images/
 
 # Generated model artifacts
-artifacts/caption_model.pt
 artifacts/image_features.pt
-artifacts/vocab.json
 
 # OS files
 .DS_Store
