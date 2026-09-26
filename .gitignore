@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# VS Code
+.vscode/
+
+# Flickr8k dataset images
+dataset/Flickr8k_Dataset/Images/
+
+# Generated model artifacts
+artifacts/caption_model.pt
+artifacts/image_features.pt
+artifacts/vocab.json
+
+# OS files
+.DS_Store
+Thumbs.db
