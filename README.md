@@ -1,10 +1,13 @@
 # 🖼️ Image Caption Generator
 
-An AI-based image captioning system that automatically generates
-natural-language descriptions for images using a deep learning
-architecture combining a ResNet50 CNN and an LSTM decoder.
+> AI-powered image captioning using a ResNet50 CNN encoder and LSTM language decoder.
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-red?logo=streamlit)](https://image-captions-generator.streamlit.app/)
+
+Upload an image and the model will generate a natural-language caption.
 
 ## 📌 Overview
+...
 
 Image captioning combines Computer Vision and Natural Language
 Processing to generate a textual description of an image.
