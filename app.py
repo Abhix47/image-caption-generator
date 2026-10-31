@@ -407,14 +407,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-upload_tab, example_tab = st.tabs(
-    ["📤 Upload your image", "🖼️ Try an example"]
+# Streamlit executes all code on every rerun, so use an explicit source
+# selector rather than separate tabs whose contents both execute.
+image_source_type = st.radio(
+    "How would you like to provide an image?",
+    options=["Upload an image", "Choose an example"],
+    horizontal=True,
+    key="image_source_type",
 )
 
 selected_image = None
 image_source = None
 
-with upload_tab:
+if image_source_type == "Upload an image":
     uploaded_file = st.file_uploader(
         "Upload a JPG, JPEG, PNG, or WebP image",
         type=["jpg", "jpeg", "png", "webp"],
@@ -424,45 +429,40 @@ with upload_tab:
 
     if uploaded_file is not None:
         try:
+            image_bytes = uploaded_file.getvalue()
             selected_image = ImageOps.exif_transpose(
                 Image.open(uploaded_file)
             ).convert("RGB")
-
-            image_source = hashlib.md5(
-                uploaded_file.getvalue()
-            ).hexdigest()
-
+            image_source = hashlib.md5(image_bytes).hexdigest()
         except Exception:
             st.error("Unable to open this image. Please choose another file.")
             selected_image = None
+            image_source = None
 
-
-with example_tab:
+else:
     if example_images:
-        image_options = {
-            path.name: path for path in example_images
-        }
+        image_options = {path.name: path for path in example_images}
+        placeholder = "-- Select an example --"
 
         selected_example_name = st.selectbox(
             "Select a sample image",
-            options=list(image_options.keys()),
+            options=[placeholder] + list(image_options.keys()),
+            index=0,
             key="example_image",
         )
 
-        selected_example_path = image_options[selected_example_name]
-
-        try:
-            selected_image = ImageOps.exif_transpose(
-                Image.open(selected_example_path)
-            ).convert("RGB")
-
-            image_source = hashlib.md5(
-                selected_example_path.read_bytes()
-            ).hexdigest()
-
-        except Exception:
-            st.error("Unable to open this example image.")
-            selected_image = None
+        if selected_example_name != placeholder:
+            selected_example_path = image_options[selected_example_name]
+            try:
+                example_bytes = selected_example_path.read_bytes()
+                selected_image = ImageOps.exif_transpose(
+                    Image.open(selected_example_path)
+                ).convert("RGB")
+                image_source = hashlib.md5(example_bytes).hexdigest()
+            except Exception:
+                st.error("Unable to open this example image.")
+                selected_image = None
+                image_source = None
     else:
         st.info(
             "No example images found. Add JPG, PNG, or WebP images "
