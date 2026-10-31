@@ -15,7 +15,6 @@ A deep learning-based web application that generates natural-language descriptio
 - **Alternative Captions:** View alternative captions when available.
 - **Caption Regeneration:** Generate another caption for the selected image.
 - **Interactive Interface:** Use the application directly through your web browser.
-- **CNN + LSTM Baseline:** Includes an optional image-captioning model based on ResNet50 and LSTM.
 
 ## 📸 Screenshots
 
@@ -61,12 +60,15 @@ Users can select an example image and generate its caption.
 ## 🧠 Models and Implementation
 
 ### 1. BLIP
+
 Implemented in `blip_captioner.py`. BLIP is a pretrained vision-language model used to generate natural-language image captions.
 
 ### 2. Qwen
+
 Implemented in `qwen_captioner.py`. The Qwen module supports image understanding and caption generation using a vision-language model.
 
 ### 3. CNN + LSTM
+
 The project also includes a CNN + LSTM captioning baseline.
 
 - **ResNet50:** Extracts visual features from images.
@@ -84,14 +86,6 @@ image-caption-generator/
 ├── .streamlit/
 │   └── config.toml
 │
-├── artifacts/
-│   ├── README.md
-│   ├── caption_model.pt
-│   └── vocab.json
-│
-├── dataset/
-│   └── README.md
-│
 ├── examples/
 │   └── Example images
 │
@@ -105,7 +99,6 @@ image-caption-generator/
 ├── app.py
 ├── blip_captioner.py
 ├── qwen_captioner.py
-├── train.py
 ├── requirements.txt
 ├── .gitignore
 └── README.md
