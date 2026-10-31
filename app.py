@@ -1,7 +1,25 @@
 """
-Image Caption Generator
-Supports pretrained BLIP and Qwen image-captioning models,
-image uploads, sample images, and an optional Flickr8k baseline.
+Image Caption Generator - Streamlit app.
+
+Features:
+- Pretrained BLIP image-captioning models
+- Qwen2-VL-2B image-captioning model
+- Upload an image or select an example image
+- Alternative captions and regeneration
+- Optional Flickr8k ResNet50 + LSTM baseline
+
+Required files:
+    app.py
+    blip_captioner.py
+    qwen_captioner.py
+    requirements.txt
+    .streamlit/config.toml
+
+Optional:
+    examples/          Sample images
+    artifacts/
+        caption_model.pt
+        vocab.json
 """
 
 import hashlib
@@ -19,35 +37,32 @@ from blip_captioner import BLIP_MODELS, DEVICE, blip_caption, load_blip
 from qwen_captioner import QWEN_MODELS, load_qwen, qwen_caption
 
 
-# =========================================================
-# CONFIGURATION
-# =========================================================
+# --------------------------------------------------
+# Paths and model configuration
+# --------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
-ARTIFACTS_DIR = BASE_DIR / "artifacts"
+ARTIFACTS = BASE_DIR / "artifacts"
 EXAMPLES_DIR = BASE_DIR / "examples"
 
-MODEL_FILE = ARTIFACTS_DIR / "caption_model.pt"
-VOCAB_FILE = ARTIFACTS_DIR / "vocab.json"
+MODEL_FILE = ARTIFACTS / "caption_model.pt"
+VOCAB_FILE = ARTIFACTS / "vocab.json"
 
-PAD = "<pad>"
-SOS = "<start>"
-EOS = "<end>"
+PAD, SOS, EOS = "<pad>", "<start>", "<end>"
 
 ALL_MODELS = {**QWEN_MODELS, **BLIP_MODELS}
-
-SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 st.set_page_config(
     page_title="Image Caption Generator",
     page_icon="🖼️",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 
-# =========================================================
-# STYLING
-# =========================================================
+# --------------------------------------------------
+# Styling
+# --------------------------------------------------
 
 st.markdown(
     """
@@ -57,20 +72,20 @@ st.markdown(
     }
 
     .block-container {
-        max-width: 1150px;
         padding-top: 2rem;
         padding-bottom: 3rem;
+        max-width: 1150px;
     }
 
     .hero {
         text-align: center;
-        padding: 1rem 0 1.5rem 0;
+        padding: 1.2rem 0 1.6rem 0;
     }
 
     .hero h1 {
         font-size: 2.8rem;
         font-weight: 800;
-        margin-bottom: 0.3rem;
+        margin: 0;
         background: linear-gradient(90deg, #7c5cff, #00d4ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -79,6 +94,13 @@ st.markdown(
     .hero p {
         color: #9aa3b5;
         font-size: 1.05rem;
+        margin-top: .6rem;
+    }
+
+    .section-heading {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: .5rem 0 1rem 0;
     }
 
     .caption-card {
@@ -93,8 +115,8 @@ st.markdown(
 
     .caption-label {
         color: #7c5cff;
-        font-size: 0.8rem;
-        letter-spacing: 0.12em;
+        font-size: .8rem;
+        letter-spacing: .12em;
         text-transform: uppercase;
         font-weight: 700;
     }
@@ -103,7 +125,7 @@ st.markdown(
         font-size: 1.45rem;
         font-weight: 600;
         line-height: 1.5;
-        margin-top: 0.5rem;
+        margin-top: .5rem;
     }
 
     .chip {
@@ -111,8 +133,9 @@ st.markdown(
         background: #1f2740;
         border: 1px solid #2b3350;
         border-radius: 999px;
-        padding: 0.4rem 0.8rem;
-        margin: 0.2rem 0.3rem 0.2rem 0;
+        padding: .45rem .85rem;
+        margin: .2rem .3rem .2rem 0;
+        font-size: .9rem;
         color: #c9d1e6;
     }
 
@@ -124,33 +147,47 @@ st.markdown(
         color: #9aa3b5;
     }
 
+    .info-card {
+        background: #161b26;
+        border: 1px solid #2b3350;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        color: #c9d1e6;
+    }
+
     div.stButton > button {
         width: 100%;
         border-radius: 10px;
         font-weight: 700;
-        padding: 0.6rem;
+        padding: .6rem;
     }
 
     [data-testid="stImage"] img {
+        border-radius: 14px;
+    }
+
+    [data-testid="stFileUploader"] {
         border-radius: 12px;
     }
+
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 
-# =========================================================
-# HEADER
-# =========================================================
+# --------------------------------------------------
+# Header
+# --------------------------------------------------
 
 st.markdown(
     """
     <div class="hero">
         <h1>🖼️ Image Caption Generator</h1>
         <p>
-            Upload an image or choose an example to generate
-            a natural-language description using AI.
+            Turn your images into natural-language descriptions
+            using pretrained vision-language models.
         </p>
     </div>
     """,
@@ -158,22 +195,22 @@ st.markdown(
 )
 
 
-# =========================================================
-# MODEL LOADING
-# =========================================================
+# --------------------------------------------------
+# Caption models
+# --------------------------------------------------
 
-@st.cache_resource(show_spinner="Loading AI model...")
+@st.cache_resource(show_spinner="Loading model and downloading weights if needed...")
 def get_model(model_id):
-    """Load the selected BLIP or Qwen model."""
+    """Load the selected pretrained captioning model."""
     if model_id in QWEN_MODELS.values():
         return load_qwen(model_id)
 
     return load_blip(model_id)
 
 
-# =========================================================
-# OPTIONAL FLICKR8K CNN + LSTM BASELINE
-# =========================================================
+# --------------------------------------------------
+# Flickr8k CNN + LSTM baseline
+# --------------------------------------------------
 
 transform = transforms.Compose(
     [
@@ -189,10 +226,8 @@ transform = transforms.Compose(
 
 @st.cache_resource
 def load_cnn():
-    """Load ResNet50 as a frozen image feature extractor."""
-    resnet = models.resnet50(
-        weights=models.ResNet50_Weights.DEFAULT
-    )
+    """Load the pretrained ResNet50 feature extractor."""
+    resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 
     cnn = nn.Sequential(*list(resnet.children())[:-1])
     cnn.eval().to(DEVICE)
@@ -204,40 +239,26 @@ def load_cnn():
 
 
 class LSTMDecoder(nn.Module):
-    """LSTM decoder used by the optional Flickr8k baseline."""
+    """ResNet feature projection followed by an LSTM decoder."""
 
-    def __init__(
-        self,
-        feature_size,
-        embed_size,
-        hidden_size,
-        vocab_size,
-    ):
+    def __init__(self, feature_size, embed_size, hidden_size, vocab_size):
         super().__init__()
 
-        self.feature_projection = nn.Linear(
-            feature_size,
-            embed_size,
-        )
-
+        self.feature_projection = nn.Linear(feature_size, embed_size)
         self.embedding = nn.Embedding(
             vocab_size,
             embed_size,
             padding_idx=0,
         )
-
         self.lstm = nn.LSTM(
             embed_size,
             hidden_size,
             batch_first=True,
         )
-
         self.fc = nn.Linear(hidden_size, vocab_size)
 
     def generate(self, feature, stoi, itos, max_len=30):
-        feature_token = self.feature_projection(
-            feature
-        ).unsqueeze(1)
+        feature_token = self.feature_projection(feature).unsqueeze(1)
 
         token = torch.tensor(
             [[stoi[SOS]]],
@@ -249,15 +270,9 @@ class LSTMDecoder(nn.Module):
         words = []
 
         for _ in range(max_len):
-            output, hidden = self.lstm(
-                self.embedding(token),
-                hidden,
-            )
+            output, hidden = self.lstm(self.embedding(token), hidden)
 
-            next_token = self.fc(
-                output[:, -1, :]
-            ).argmax(dim=-1)
-
+            next_token = self.fc(output[:, -1, :]).argmax(dim=-1)
             word = itos[int(next_token.item())]
 
             if word == EOS:
@@ -273,7 +288,7 @@ class LSTMDecoder(nn.Module):
 
 @st.cache_resource
 def load_lstm():
-    """Load the trained Flickr8k baseline if its files exist."""
+    """Load trained Flickr8k baseline artifacts if available."""
     if not MODEL_FILE.exists() or not VOCAB_FILE.exists():
         return None
 
@@ -299,17 +314,17 @@ def load_lstm():
     return decoder, vocab["stoi"], vocab["itos"]
 
 
-# =========================================================
-# CAPTION CLEANUP
-# =========================================================
+# --------------------------------------------------
+# Caption cleanup
+# --------------------------------------------------
 
 def polish(text):
-    """Clean the generated caption and format its punctuation."""
+    """Clean generated text and format it as a sentence."""
     text = " ".join(text.strip().split())
 
-    for unwanted in ("arafed ", "araffe ", "arafed, "):
-        if text.lower().startswith(unwanted):
-            text = text[len(unwanted):].strip()
+    for junk in ("arafed ", "araffe ", "arafed, "):
+        if text.lower().startswith(junk):
+            text = text[len(junk):].strip()
 
     if not text:
         return ""
@@ -322,12 +337,15 @@ def polish(text):
     return text
 
 
-# =========================================================
-# EXAMPLE IMAGE DISCOVERY
-# =========================================================
+# --------------------------------------------------
+# Example images
+# --------------------------------------------------
+
+SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
 
 def get_example_images():
-    """Find supported images inside the local examples folder."""
+    """Return supported sample images from the examples folder."""
     if not EXAMPLES_DIR.exists():
         return []
 
@@ -342,176 +360,157 @@ def get_example_images():
     )
 
 
-# =========================================================
-# ADVANCED SETTINGS
-# =========================================================
+example_images = get_example_images()
+
+
+# --------------------------------------------------
+# Advanced settings
+# --------------------------------------------------
 
 with st.expander("⚙️ Advanced settings"):
-    column1, column2 = st.columns(2)
+    model_col, beam_col = st.columns(2)
 
-    model_name = column1.selectbox(
+    model_name = model_col.selectbox(
         "Captioning model",
         options=list(ALL_MODELS.keys()),
         index=len(QWEN_MODELS),
     )
 
-    num_beams = column2.slider(
-        "BLIP beam width",
+    num_beams = beam_col.slider(
+        "BLIP beam width (BLIP only)",
         min_value=1,
         max_value=10,
         value=5,
-        help="This setting applies to BLIP models only.",
     )
 
     prompt = st.text_input(
         "Optional prompt",
-        placeholder="Enter an optional description instruction",
+        placeholder="Enter an optional caption prompt or instruction",
         help=(
-            "Leave empty to use the model's default instruction. "
-            "For Qwen, a custom prompt replaces its default instruction."
+            "Leave empty for the default instruction. "
+            "For Qwen, this can replace its default description instruction."
         ),
     )
 
     compare = st.checkbox(
-        "Also show the Flickr8k CNN + LSTM baseline"
+        "Also show the Flickr8k CNN + LSTM baseline",
+        value=False,
     )
 
 
-# =========================================================
-# IMAGE INPUT
-# =========================================================
+# --------------------------------------------------
+# Image selection
+# --------------------------------------------------
 
-st.markdown("### Choose an image")
+st.markdown(
+    '<div class="section-heading">Choose an image</div>',
+    unsafe_allow_html=True,
+)
 
 upload_tab, example_tab = st.tabs(
     ["📤 Upload your image", "🖼️ Try an example"]
 )
 
 selected_image = None
-image_bytes = None
 image_source = None
 
 with upload_tab:
     uploaded_file = st.file_uploader(
         "Upload a JPG, JPEG, PNG, or WebP image",
         type=["jpg", "jpeg", "png", "webp"],
+        help="Maximum upload size: 20 MB.",
         key="image_uploader",
     )
 
     if uploaded_file is not None:
         try:
-            image_bytes = uploaded_file.getvalue()
-
             selected_image = ImageOps.exif_transpose(
                 Image.open(uploaded_file)
             ).convert("RGB")
 
-            image_source = "upload_" + hashlib.md5(
-                image_bytes
+            image_source = hashlib.md5(
+                uploaded_file.getvalue()
             ).hexdigest()
 
         except Exception:
-            st.error(
-                "Unable to open this image. Please select another file."
-            )
+            st.error("Unable to open this image. Please choose another file.")
+            selected_image = None
 
 
 with example_tab:
-    example_images = get_example_images()
-
     if example_images:
-        example_columns = st.columns(4)
+        image_options = {
+            path.name: path for path in example_images
+        }
 
-        for index, example_path in enumerate(example_images[:4]):
-            with example_columns[index]:
-                try:
-                    with Image.open(example_path) as sample:
-                        st.image(
-                            sample.convert("RGB"),
-                            caption=example_path.stem.replace("_", " "),
-                            use_container_width=True,
-                        )
+        selected_example_name = st.selectbox(
+            "Select a sample image",
+            options=list(image_options.keys()),
+            key="example_image",
+        )
 
-                    if st.button(
-                        f"Use example {index + 1}",
-                        key=f"example_button_{index}",
-                    ):
-                        st.session_state["chosen_example"] = str(
-                            example_path
-                        )
-                        st.session_state["clear_upload"] = True
-                        st.rerun()
+        selected_example_path = image_options[selected_example_name]
 
-                except Exception:
-                    st.caption(
-                        f"Could not display {example_path.name}"
-                    )
+        try:
+            selected_image = ImageOps.exif_transpose(
+                Image.open(selected_example_path)
+            ).convert("RGB")
 
-        chosen_example = st.session_state.get("chosen_example")
+            image_source = hashlib.md5(
+                selected_example_path.read_bytes()
+            ).hexdigest()
 
-        if chosen_example:
-            chosen_path = Path(chosen_example)
-
-            if chosen_path.exists():
-                try:
-                    image_bytes = chosen_path.read_bytes()
-
-                    selected_image = ImageOps.exif_transpose(
-                        Image.open(chosen_path)
-                    ).convert("RGB")
-
-                    image_source = "example_" + hashlib.md5(
-                        image_bytes
-                    ).hexdigest()
-
-                    st.caption(
-                        f"Selected example: {chosen_path.name}"
-                    )
-
-                except Exception:
-                    st.error("Unable to open the selected example image.")
-
+        except Exception:
+            st.error("Unable to open this example image.")
+            selected_image = None
     else:
         st.info(
-            "No sample images found. Create an 'examples' folder "
-            "beside app.py and add JPG, PNG, or WebP images."
+            "No example images found. Add JPG, PNG, or WebP images "
+            "to the `examples` folder in your repository."
         )
 
 
-# =========================================================
-# IMAGE PREVIEW
-# =========================================================
+# --------------------------------------------------
+# Generate caption
+# --------------------------------------------------
 
-if selected_image is not None:
-    st.divider()
-
-    left_column, right_column = st.columns(
-        [1, 1],
-        gap="large",
+if selected_image is None:
+    st.markdown(
+        """
+        <div class="placeholder">
+            📷<br><br>
+            Choose an example image or upload your own image.
+            <br>
+            The generated caption will appear here.
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    with left_column:
-        st.markdown("#### Selected image")
+else:
+    st.divider()
 
+    left, right = st.columns([1, 1], gap="large")
+
+    with left:
+        st.markdown("#### Selected image")
         st.image(
             selected_image,
             use_container_width=True,
         )
 
-    with right_column:
-        st.markdown("#### Generated caption")
-
+    with right:
         model_id = ALL_MODELS[model_name]
 
         result_key = (
-            f"{image_source}|{model_name}|"
-            f"{num_beams}|{prompt.strip()}"
+            f"{image_source}|{model_name}|{num_beams}|{prompt.strip()}"
         )
 
         if st.session_state.get("result_key") != result_key:
             try:
                 with st.spinner(
-                    "Analyzing image. The first run may take several minutes..."
+                    "Loading model and generating caption. "
+                    "The first run may take several minutes..."
                 ):
                     processor, model = get_model(model_id)
 
@@ -532,16 +531,14 @@ if selected_image is not None:
                         )
 
                 cleaned_captions = []
-
                 for caption in generated_captions:
                     cleaned = polish(caption)
-
                     if cleaned and cleaned not in cleaned_captions:
                         cleaned_captions.append(cleaned)
 
                 if not cleaned_captions:
                     cleaned_captions = [
-                        "Sorry, no caption could be generated."
+                        "No caption could be generated for this image."
                     ]
 
                 st.session_state["result_key"] = result_key
@@ -549,25 +546,21 @@ if selected_image is not None:
 
             except Exception as error:
                 st.error(
-                    "Caption generation failed. Check the selected "
-                    "model and try again."
+                    "The caption could not be generated. "
+                    "Try another model or image."
                 )
-
-                with st.expander("Technical error details"):
-                    st.exception(error)
+                st.exception(error)
+                st.stop()
 
         captions = st.session_state.get("captions", [])
 
-        if (
-            captions
-            and st.session_state.get("result_key") == result_key
-        ):
+        if captions:
             safe_caption = html.escape(captions[0])
 
             st.markdown(
                 f"""
                 <div class="caption-card">
-                    <div class="caption-label">Caption</div>
+                    <div class="caption-label">Generated caption</div>
                     <div class="caption-text">{safe_caption}</div>
                 </div>
                 """,
@@ -580,50 +573,44 @@ if selected_image is not None:
                 st.markdown("**Alternative captions**")
 
                 for caption in captions[1:]:
-                    safe_alternative = html.escape(caption)
-
                     st.markdown(
-                        f'<span class="chip">{safe_alternative}</span>',
+                        f'<span class="chip">{html.escape(caption)}</span>',
                         unsafe_allow_html=True,
                     )
 
-            if st.button(
-                "🔄 Regenerate caption",
-                key="regenerate_button",
-            ):
+            if st.button("🔄 Regenerate caption", key="regenerate"):
                 st.session_state["result_key"] = None
                 st.rerun()
 
-            # =============================================
-            # OPTIONAL BASELINE
-            # =============================================
+            # ------------------------------------------
+            # Optional Flickr8k baseline
+            # ------------------------------------------
 
             if compare:
                 st.divider()
-
-                st.markdown(
-                    "#### Flickr8k CNN + LSTM baseline"
-                )
+                st.markdown("#### Flickr8k CNN + LSTM baseline")
 
                 baseline = load_lstm()
 
                 if baseline is None:
                     st.info(
-                        "The baseline is not trained or its model files "
-                        "are missing. Run train.py and provide the required "
-                        "artifacts to use this feature."
+                        "The baseline model is not available. "
+                        "To use it, train the model with `python train.py` "
+                        "and include the required files in the `artifacts` folder."
                     )
-
                 else:
                     try:
                         decoder, stoi, itos = baseline
 
                         with torch.no_grad():
-                            features = load_cnn()(
-                                transform(selected_image)
-                                .unsqueeze(0)
-                                .to(DEVICE)
-                            ).flatten(1)
+                            features = (
+                                load_cnn()(
+                                    transform(selected_image)
+                                    .unsqueeze(0)
+                                    .to(DEVICE)
+                                )
+                                .flatten(1)
+                            )
 
                             baseline_caption = decoder.generate(
                                 features,
@@ -631,30 +618,36 @@ if selected_image is not None:
                                 itos,
                             )
 
-                        st.markdown("**Baseline caption**")
-                        st.write(polish(baseline_caption))
+                        st.markdown(
+                            f"""
+                            <div class="info-card">
+                                <strong>Baseline caption</strong><br><br>
+                                {html.escape(polish(baseline_caption))}
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
 
                     except Exception as error:
                         st.warning(
-                            "The baseline model could not generate a caption."
+                            "The Flickr8k baseline could not be loaded. "
+                            "Check that its checkpoint and vocabulary match."
                         )
-
-                        with st.expander("Technical error details"):
-                            st.exception(error)
+                        st.exception(error)
 
 
-# =========================================================
-# FOOTER
-# =========================================================
+# --------------------------------------------------
+# Footer
+# --------------------------------------------------
 
 st.divider()
 
 st.markdown(
     """
-    <div style="text-align:center; color:#7d869c; font-size:0.85rem;">
-        Image Caption Generator · Powered by vision-language models
+    <div style="text-align:center; color:#7d869c; font-size:.85rem;">
+        Image Caption Generator · Powered by pretrained vision-language models
         <br>
-        AI-generated captions may contain mistakes.
+        Generated captions may contain mistakes and should be verified.
     </div>
     """,
     unsafe_allow_html=True,
