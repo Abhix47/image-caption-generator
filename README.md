@@ -1,50 +1,135 @@
 # 🖼️ Image Caption Generator
 
-> Image captioning with a pretrained BLIP vision-language model, compared against a ResNet50 + LSTM baseline trained from scratch on Flickr8k.
+A deep learning-based web application that generates natural-language descriptions of images using computer vision and vision-language models. Built with Python, PyTorch, and Streamlit, the application allows users to upload images or select sample images and generate captions through an interactive interface.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-red?logo=streamlit)](https://image-captions-generator.streamlit.app/)
+## 🌐 Live Demo
 
-## Overview
+🚀 **[Try Image Caption Generator](https://image-caption-generator-tgchakgufqrjftvcs8gssm.streamlit.app/)**
 
-Image captioning combines Computer Vision and NLP to describe an image in a sentence.
+## ✨ Features
 
-| Model | Role | Training data |
-|---|---|---|
-| **BLIP (large/base)** | Main model | Pretrained on ~129M image-text pairs, fine-tuned on COCO captions |
-| ResNet50 + LSTM | Baseline | Trained here on Flickr8k (~8k images) |
+- **Image Upload:** Upload your own images for caption generation.
+- **Example Images:** Select sample images provided by the application.
+- **AI-Powered Captioning:** Generate natural-language descriptions of images.
+- **Multiple Models:** Support for BLIP and Qwen vision-language models.
+- **Alternative Captions:** View alternative captions when available.
+- **Caption Regeneration:** Generate another caption for the selected image.
+- **Interactive Interface:** Use the application directly through your web browser.
+- **CNN + LSTM Baseline:** Includes an optional image-captioning model based on ResNet50 and LSTM.
 
-### Why two models?
+## 📸 Screenshots
 
-The ResNet50 + LSTM baseline shows the classic encoder-decoder approach, but with
-only ~8k training images it cannot generalize to arbitrary photos. BLIP uses a
-Vision Transformer encoder and a transformer text decoder, pretrained at scale,
-and decodes with beam search. This is the "before vs. after" of the project.
+### Uploaded Image
 
-## Architecture
+The application generates a caption for an image uploaded by the user.
+
+![Uploaded Image Demo](screenshots/uploaded-image-demo.png)
+
+### Example Image
+
+Users can select an example image and generate its caption.
+
+![Example Image Demo](screenshots/example-image-demo.png)
+
+### Application Interface
+
+![Streamlit Interface](screenshots/streamlit-interface.png)
+
+## 🖼️ Sample Input Images
+
+### Uploaded Image
+
+![Original Uploaded Image](screenshots/uploaded-image.png)
+
+### Example Image
+
+![Original Example Image](screenshots/example-image.png)
+
+## 🛠️ Technologies Used
+
+| Technology | Purpose |
+|---|---|
+| Python | Core programming language |
+| Streamlit | Web application interface |
+| PyTorch | Deep learning framework |
+| BLIP | Image caption generation |
+| Qwen | Vision-language understanding and caption generation |
+| Torchvision | Image processing and ResNet50 |
+| Pillow (PIL) | Image loading and preprocessing |
+| LSTM | Sequence generation in the optional captioning baseline |
+
+## 🧠 Models and Implementation
+
+### 1. BLIP
+Implemented in `blip_captioner.py`. BLIP is a pretrained vision-language model used to generate natural-language image captions.
+
+### 2. Qwen
+Implemented in `qwen_captioner.py`. The Qwen module supports image understanding and caption generation using a vision-language model.
+
+### 3. CNN + LSTM
+The project also includes a CNN + LSTM captioning baseline.
+
+- **ResNet50:** Extracts visual features from images.
+- **Embedding Layer:** Represents caption tokens as vectors.
+- **LSTM Decoder:** Generates captions sequentially.
+- **Vocabulary:** Maps words and tokens used by the decoder.
+
+The baseline uses the saved model artifacts in the `artifacts/` directory when compatible with the implementation.
+
+## 📂 Project Structure
 
 ```text
-Input image -> preprocessing -> ViT image encoder -> cross-attention text decoder
-            -> beam search (width 5) -> caption
+image-caption-generator/
+│
+├── .streamlit/
+│   └── config.toml
+│
+├── artifacts/
+│   ├── README.md
+│   ├── caption_model.pt
+│   └── vocab.json
+│
+├── dataset/
+│   └── README.md
+│
+├── examples/
+│   └── Example images
+│
+├── screenshots/
+│   ├── streamlit-interface.png
+│   ├── uploaded-image-demo.png
+│   ├── example-image-demo.png
+│   ├── uploaded-image.png
+│   └── example-image.png
+│
+├── app.py
+├── blip_captioner.py
+├── qwen_captioner.py
+├── train.py
+├── requirements.txt
+├── .gitignore
+└── README.md
 ```
 
-## Run
+## 🚀 How to Use
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+1. Open the [live application](https://image-caption-generator-tgchakgufqrjftvcs8gssm.streamlit.app/).
+2. Choose **Upload an image** or **Choose an example**.
+3. Upload an image or select a sample image.
+4. Choose an available captioning model if the application provides that option.
+5. Generate the caption.
+6. View the generated description and any available alternative captions.
 
-First run downloads BLIP weights from Hugging Face (large ≈ 1.9 GB, base ≈ 1 GB).
+## 👨‍💻 Author
 
-Optional baseline (needs the Flickr8k dataset in `dataset/Flickr8k_Dataset/`):
+**Abhix47**
 
-```bash
-python train.py
-```
+- **GitHub:** [Abhix47](https://github.com/Abhix47)
+- **Repository:** [Image Caption Generator](https://github.com/Abhix47/image-caption-generator)
+- **Live Application:** [Launch on Streamlit](https://image-caption-generator-tgchakgufqrjftvcs8gssm.streamlit.app/)
 
-Then tick "Also show Flickr8k CNN+LSTM baseline" in the app sidebar.
+---
 
-## Limitations
-
-- Captions are generic, one-sentence descriptions; fine detail, text in images, counts and rare objects can be wrong.
-- BLIP-large needs ~2-4 GB RAM; the free Streamlit Community Cloud tier (~1 GB) may crash on it. Run locally or use a Hugging Face Space for the demo.
+<p align="center">
+  Built with Python, Deep Learning, and Streamlit.
+</p>
